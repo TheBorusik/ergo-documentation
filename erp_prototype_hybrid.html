@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP — гибрид (верх плоский + проект рекурсивный)</title>
+<style>
+  :root {
+    --bg: #eef1f5; --panel: #ffffff; --ink: #1e2733; --ink-soft: #5b6673;
+    --ink-faint: #939daa; --line: #e2e7ee; --line-soft: #eef1f5;
+    --accent: #2f6db5; --accent-soft: #e8f0f9; --accent-ink: #1f5490;
+    --wait: #9aa5b3; --work: #2f6db5; --done: #3a9e6e; --warn: #d98a1f; --danger: #cc4b45;
+    --sidebar: #1f2a38; --sidebar-ink: #b7c1d0; --radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); height: 100vh; overflow: hidden; font-size: 14px; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 208px; background: var(--sidebar); color: var(--sidebar-ink); display: flex; flex-direction: column; flex-shrink: 0; }
+  .logo { padding: 18px 20px; font-size: 16px; font-weight: 600; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 9px; }
+  .logo .mark { width: 24px; height: 24px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; font-size: 13px; color: #fff; }
+  .nav { padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 7px; cursor: pointer; color: var(--sidebar-ink); font-size: 13.5px; transition: background .12s, color .12s; user-select: none; }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  .nav-item.active { background: var(--accent); color: #fff; }
+  .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; opacity: 0.9; }
+  .nav-sep { height:1px; background: rgba(255,255,255,0.08); margin: 8px 12px; }
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  /* ВЕРХНЯЯ ПЛОСКАЯ ЛЕНТА */
+  .tabbar { display: flex; align-items: stretch; gap: 3px; padding: 8px 10px 0; background: var(--bg); overflow-x: auto; flex-shrink: 0; }
+  .tabbar::-webkit-scrollbar { height: 5px; } .tabbar::-webkit-scrollbar-thumb { background: #cdd5df; border-radius: 3px; }
+  .tab { display: flex; align-items: center; gap: 8px; padding: 9px 13px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; border: 1px solid transparent; border-bottom: none; max-width: 210px; transition: background .12s; flex-shrink: 0; }
+  .tab:hover { background: rgba(255,255,255,0.55); }
+  .tab.active { background: var(--panel); color: var(--ink); font-weight: 500; border-color: var(--line); }
+  .tab .ic { width: 15px; height:15px; flex-shrink:0; opacity:.8; }
+  .tab .t-title { overflow: hidden; text-overflow: ellipsis; }
+  .tab .close { width: 17px; height: 17px; border-radius: 5px; display: grid; place-items: center; font-size: 14px; color: var(--ink-faint); flex-shrink: 0; line-height: 1; }
+  .tab .close:hover { background: rgba(0,0,0,0.09); color: var(--ink); }
+  .tab .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .tab.pinned .close { display:none; }
+  .canvas { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 0 8px 0 0; margin: 0 10px 0; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+
+  /* РЕКУРСИВНЫЙ УРОВЕНЬ (внутри проекта) */
+  .level { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; }
+  .level > .tabstrip { display: flex; align-items: stretch; gap: 3px; padding: 7px 12px 0; background: #f7f9fb; border-bottom: 1px solid var(--line); overflow-x: auto; flex-shrink: 0; }
+  .level > .tabstrip::-webkit-scrollbar { height: 5px; } .level > .tabstrip::-webkit-scrollbar-thumb { background: #d5dce4; border-radius: 3px; }
+  .ltab { display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 7px 7px 0 0; cursor: pointer; font-size: 12px; color: var(--ink-soft); white-space: nowrap; border: 1px solid transparent; border-bottom: none; margin-bottom:-1px; max-width: 190px; flex-shrink:0; }
+  .ltab:hover { background: rgba(0,0,0,0.03); }
+  .ltab.active { background: var(--panel); color: var(--ink); font-weight: 500; border-color: var(--line); }
+  .ltab .ic { width: 14px; height:14px; flex-shrink:0; opacity:.8; }
+  .ltab .t-title { overflow: hidden; text-overflow: ellipsis; }
+  .ltab .close { width:16px; height:16px; border-radius:4px; display:grid; place-items:center; font-size:13px; color: var(--ink-faint); line-height:1; }
+  .ltab .close:hover { background: rgba(0,0,0,0.09); color: var(--ink); }
+  .ltab .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .ltab.pinned .close { display:none; }
+  .level > .content { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+  .scroll { flex:1; overflow: auto; display:flex; flex-direction:column; min-height:0; }
+  .head { padding: 16px 20px 13px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .head h2 { font-size: 16px; font-weight: 600; }
+  .head .sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+  .body { padding: 16px 20px; }
+  .rowlist { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; align-items: center; gap: 14px; padding: 12px 15px; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+  .row:hover { border-color: var(--accent); box-shadow: 0 1px 6px rgba(47,109,181,0.08); }
+  .row .r-main { flex:1; min-width:0; }
+  .row .r-title { font-weight: 500; }
+  .row .r-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+  .row .r-meta { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+  .row .chev { color: var(--ink-faint); }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
+  .badge .dot { width:7px; height:7px; border-radius:50%; }
+  .b-wait { background:#f0f2f5; color: var(--wait); } .b-wait .dot { background: var(--wait); }
+  .b-work { background: var(--accent-soft); color: var(--accent-ink); } .b-work .dot { background: var(--work); }
+  .b-done { background:#e7f4ec; color: var(--done); } .b-done .dot { background: var(--done); }
+  .b-warn { background:#fbf1e0; color: var(--warn); } .b-warn .dot { background: var(--warn); }
+  .progress { width: 84px; height: 6px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--accent); border-radius: 4px; }
+  .metrics { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric { border:1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .metric .m-lbl { font-size: 12px; color: var(--ink-soft); }
+  .metric .m-val { font-size: 23px; font-weight: 600; margin-top: 3px; }
+  .card { border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 17px; margin-bottom: 13px; }
+  .card h3 { font-size: 12px; font-weight:600; margin-bottom: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+  table { width:100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align:left; padding: 9px 11px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); border-bottom: 1px solid var(--line); font-weight: 600; }
+  td { padding: 10px 11px; border-bottom: 1px solid var(--line-soft); }
+  tr:last-child td { border-bottom: none; }
+  .num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+  .grid2 { display:grid; grid-template-columns: 1.4fr 1fr; gap: 13px; }
+  .actions { display:flex; gap: 8px; flex-wrap: wrap; }
+  .btn { padding: 8px 15px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); font-size: 13px; cursor: pointer; color: var(--ink); font-family: inherit; }
+  .btn:hover { background: #f5f7fa; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent-ink); }
+  .stepper { display:flex; align-items:center; margin: 4px 0 18px; flex-wrap: wrap; }
+  .step { display:flex; align-items:center; gap:8px; }
+  .step .num { width:25px; height:25px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:600; flex-shrink:0; }
+  .step.done .num { background: var(--done); color:#fff; }
+  .step.active .num { background: var(--accent); color:#fff; }
+  .step.wait .num { background: var(--line); color: var(--ink-faint); }
+  .step .lbl { font-size:12.5px; color: var(--ink-soft); }
+  .step.active .lbl { color: var(--ink); font-weight:500; }
+  .step-line { width:30px; height:2px; background: var(--line); margin:0 5px; }
+  .step-line.done { background: var(--done); }
+  .empty { flex:1; display:grid; place-items:center; color: var(--ink-faint); text-align:center; padding: 40px; }
+  .empty svg { width: 42px; height:42px; opacity:.3; margin-bottom: 12px; }
+  .empty h3 { font-weight:500; color: var(--ink-soft); font-size: 15px; margin-bottom: 6px; }
+  .empty p { font-size: 13px; max-width: 340px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><span class="mark">В</span> ВентЭРП</div>
+    <nav class="nav" id="mainNav">
+      <div class="nav-item" data-menu="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Дашборд</div>
+      <div class="nav-item active" data-menu="projects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Проекты</div>
+      <div class="nav-item" data-menu="nomenclature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Номенклатура</div>
+      <div class="nav-item" data-menu="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/></svg>Поставщики</div>
+      <div class="nav-item" data-menu="purchases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>Закупки</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-menu="dict"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Справочники</div>
+    </nav>
+  </aside>
+  <div class="main">
+    <div class="tabbar" id="tabbar"></div>
+    <div class="canvas" id="canvas"></div>
+  </div>
+</div>
+<script>
+const MENU_TITLES = { dashboard:'Дашборд', projects:'Проекты', nomenclature:'Номенклатура', suppliers:'Поставщики', purchases:'Закупки', dict:'Справочники' };
+const PROJECTS = [
+  { id:'p1', name:'Завод сыра — вентиляция', short:'Завод сыра', customer:'ООО «Молоко»', stage:'Снабжение', progress:60, badge:'b-work', badgeText:'В работе', deadline:'01.03.26' },
+  { id:'p2', name:'Офис BCG — кондиционирование', short:'Офис BCG', customer:'BCG', stage:'Монтаж', progress:80, badge:'b-work', badgeText:'В работе', deadline:'15.03.26' },
+  { id:'p3', name:'Склад №4 — холодоснабжение', short:'Склад №4', customer:'ООО «Фрост»', stage:'Проектирование', progress:25, badge:'b-work', badgeText:'В работе', deadline:'28.03.26' },
+  { id:'p4', name:'Гараж — приточка', short:'Гараж', customer:'ИП Сидоров', stage:'Сдача', progress:95, badge:'b-done', badgeText:'Завершается', deadline:'20.02.26' },
+];
+const SUPPLY_TASKS = [
+  { id:'t1', name:'Воздуховоды П1 → Поставщик А', short:'Воздуховоды П1', supplier:'Поставщик А', positions:3, sum:'17 400 ₽', badge:'b-work', badgeText:'Оплата', step:4 },
+  { id:'t2', name:'Клапаны П1 → Поставщик Б', short:'Клапаны П1', supplier:'Поставщик Б', positions:2, sum:'8 200 ₽', badge:'b-warn', badgeText:'Согласование', step:3 },
+  { id:'t3', name:'Оборудование холода → Центавр', short:'Оборуд. холода', supplier:'Центавр', positions:5, sum:'145 000 ₽', badge:'b-wait', badgeText:'Запрос цен', step:1 },
+];
+const TASK_POSITIONS = {
+  t1:[ {name:'Воздуховод 500×300 оц.',qty:'×10',price:'1 200 ₽',sum:'12 000 ₽'}, {name:'Отвод 90° 500×300',qty:'×8',price:'450 ₽',sum:'3 600 ₽'}, {name:'Врезка 500×300/200',qty:'×6',price:'300 ₽',sum:'1 800 ₽'} ],
+  t2:[ {name:'Клапан огнезадерж. КОМ-1',qty:'×2',price:'3 400 ₽',sum:'6 800 ₽'}, {name:'Привод BELIMO',qty:'×2',price:'700 ₽',sum:'1 400 ₽'} ],
+  t3:[ {name:'Чиллер MDV LSBLG',qty:'×1',price:'98 000 ₽',sum:'98 000 ₽'}, {name:'Фанкойл MDKA',qty:'×4',price:'11 750 ₽',sum:'47 000 ₽'} ],
+};
+const WORKS_TASKS = [
+  { id:'w1', name:'Монтаж воздуховодов П1', short:'Монтаж возд. П1', worker:'Бригада 1', positions:8, badge:'b-work', badgeText:'В работе' },
+  { id:'w2', name:'Установка оборудования', short:'Установка обор.', worker:'Бригада 2', positions:5, badge:'b-wait', badgeText:'Ожидание' },
+  { id:'w3', name:'Пусконаладка', short:'Пусконаладка', worker:'Бригада 1', positions:3, badge:'b-wait', badgeText:'Ожидание' },
+];
+const DOCS_TASKS = [
+  { id:'d1', name:'Паспорта на оборудование', short:'Паспорта', responsible:'Иванова', positions:5, badge:'b-work', badgeText:'В работе' },
+  { id:'d2', name:'Сертификаты воздуховодов', short:'Сертификаты', responsible:'Иванова', positions:8, badge:'b-done', badgeText:'Готово' },
+  { id:'d3', name:'Акты скрытых работ', short:'Акты', responsible:'Петров', positions:4, badge:'b-wait', badgeText:'Ожидание' },
+];
+const ICON = {
+  projects:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  project:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#2f6db5" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/></svg>',
+  section:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#2f6db5" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
+  task:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#d98a1f" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  overview:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#5b6673" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  stub:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+};
+// ВЕРХ: плоские глобальные вкладки. Проект = вкладка с children (рекурсивный уровень).
+let globalTabs=[]; let gActive=null;
+function openGlobal(t){ if(!globalTabs.find(x=>x.id===t.id)) globalTabs.push(t); gActive=t.id; render(); }
+function closeGlobal(id){ const i=globalTabs.findIndex(t=>t.id===id); globalTabs=globalTabs.filter(t=>t.id!==id); if(gActive===id) gActive=globalTabs.length?globalTabs[Math.max(0,i-1)].id:null; render(); }
+function curGlobal(){ return globalTabs.find(t=>t.id===gActive); }
+// рекурсивные уровни внутри проекта: level={tabs:[],active}; вкладка может иметь children(level)
+function openInLevel(level,tab){ if(!level.tabs.find(t=>t.id===tab.id)) level.tabs.push(tab); level.active=tab.id; }
+function closeInLevel(level,id){ const i=level.tabs.findIndex(t=>t.id===id); level.tabs=level.tabs.filter(t=>t.id!==id); if(level.active===id) level.active=level.tabs.length?level.tabs[Math.max(0,i-1)].id:null; }
+document.getElementById('mainNav').addEventListener('click', e=>{
+  const item=e.target.closest('.nav-item'); if(!item) return;
+  document.querySelectorAll('#mainNav .nav-item').forEach(n=>n.classList.remove('active'));
+  item.classList.add('active'); const menu=item.dataset.menu;
+  if(menu==='projects') openGlobal({ id:'projects', title:'Проекты', kind:'projects', pinned:true });
+  else openGlobal({ id:'m-'+menu, title:MENU_TITLES[menu], kind:'stub' });
+});
+function render(){
+  renderTabbar();
+  const canvas=document.getElementById('canvas'); const g=curGlobal();
+  if(!g){ canvas.innerHTML='<div class="empty"><h3>Нет вкладок</h3><p>Выберите раздел слева.</p></div>'; return; }
+  canvas.innerHTML='';
+  if(g.kind==='project'){ canvas.appendChild(renderLevel(g.root, g)); }
+  else { const d=document.createElement('div'); d.className='scroll'; d.innerHTML=(g.kind==='projects'?renderProjectList():renderStub(g.title)); canvas.appendChild(d); }
+  bindAll();
+}
+function renderTabbar(){
+  const bar=document.getElementById('tabbar'); bar.innerHTML='';
+  globalTabs.forEach(t=>{
+    const el=document.createElement('div');
+    el.className='tab'+(t.id===gActive?' active':'')+(t.pinned?' pinned':'');
+    const dot=t.dot?'<span class="dot" style="background:'+t.dot+'"></span>':'';
+    el.innerHTML=(ICON[t.kind]||'')+'<span class="t-title">'+t.title+'</span>'+(t.pinned?'':'<span class="close">×</span>');
+    el.onclick=(e)=>{ if(e.target.classList.contains('close')) closeGlobal(t.id); else { gActive=t.id; render(); } };
+    bar.appendChild(el);
+  });
+}
+// рекурсивный рендер уровня внутри проекта
+function renderLevel(level, g){
+  const wrap=document.createElement('div'); wrap.className='level';
+  const strip=document.createElement('div'); strip.className='tabstrip';
+  level.tabs.forEach(t=>{
+    const el=document.createElement('div');
+    el.className='ltab'+(t.id===level.active?' active':'')+(t.pinned?' pinned':'');
+    el.dataset.ltabid=t.id;
+    const dot=t.dot?'<span class="dot" style="background:'+t.dot+'"></span>':'';
+    el.innerHTML=(ICON[t.kind]||'')+'<span class="t-title">'+t.title+'</span>'+(t.pinned?'':'<span class="close">×</span>');
+    el._level=level;
+    strip.appendChild(el);
+  });
+  wrap.appendChild(strip);
+  const content=document.createElement('div'); content.className='content';
+  const active=level.tabs.find(t=>t.id===level.active);
+  if(!active){ content.innerHTML='<div class="empty"><h3>Пусто</h3></div>'; }
+  else if(active.children){ content.appendChild(renderLevel(active.children, g)); }
+  else { const d=document.createElement('div'); d.className='scroll'; d.innerHTML=renderLevelContent(active, g); content.appendChild(d); }
+  wrap.appendChild(content);
+  return wrap;
+}
+function renderLevelContent(t, g){
+  switch(t.kind){
+    case 'overview': return renderOverview(g.data.pid);
+    case 'supplyList': return renderSupplyList();
+    case 'supplyTask': return renderSupplyTask(t.data.taskId);
+    case 'worksList': return renderWorksList();
+    case 'worksTask': return renderWorksTask(t.data.taskId);
+    case 'docsList': return renderDocsList();
+    case 'docsTask': return renderDocsTask(t.data.taskId);
+    default: return renderStub(t.title);
+  }
+}
+function renderProjectList(){
+  const rows=PROJECTS.map(p=>'<div class="row" data-open="project" data-pid="'+p.id+'"><div class="r-main"><div class="r-title">'+p.name+'</div><div class="r-sub">'+p.customer+' · этап: '+p.stage+'</div></div><div class="progress"><div style="width:'+p.progress+'%"></div></div><div class="r-meta">срок '+p.deadline+'</div><span class="badge '+p.badge+'"><span class="dot"></span>'+p.badgeText+'</span><span class="chev">›</span></div>').join('');
+  return '<div class="head"><div><h2>Проекты</h2><div class="sub">'+PROJECTS.length+' проекта · проект открывается вкладкой сверху (плоско), внутри — рекурсивные табы</div></div><button class="btn btn-primary">+ Новый проект</button></div><div class="body"><div class="rowlist">'+rows+'</div></div>';
+}
+function renderOverview(pid){
+  const p=PROJECTS.find(x=>x.id===pid);
+  return '<div class="head"><div><h2>'+p.name+'</h2><div class="sub">'+p.customer+' · срок '+p.deadline+'</div></div></div><div class="body"><div class="metrics"><div class="metric"><div class="m-lbl">Позиций</div><div class="m-val">29</div></div><div class="metric"><div class="m-lbl">Задач</div><div class="m-val">6</div></div><div class="metric"><div class="m-lbl">К закупке</div><div class="m-val">8</div></div><div class="metric"><div class="m-lbl">Прогресс</div><div class="m-val">'+p.progress+'%</div></div></div><div class="card"><h3>Разделы проекта</h3><div class="rowlist"><div class="row" data-open="supply"><div class="r-main"><div class="r-title">Снабжение</div><div class="r-sub">3 задачи</div></div><span class="badge b-work"><span class="dot"></span>В работе</span><span class="chev">›</span></div><div class="row" data-open="works"><div class="r-main"><div class="r-title">Работы</div><div class="r-sub">3 задачи</div></div><span class="badge b-work"><span class="dot"></span>В работе</span><span class="chev">›</span></div><div class="row" data-open="docs"><div class="r-main"><div class="r-title">Документы</div><div class="r-sub">3 задачи</div></div><span class="badge b-work"><span class="dot"></span>В работе</span><span class="chev">›</span></div></div></div><div class="card" style="background:var(--accent-soft);border-color:#d3e3f3"><div style="font-size:12.5px;color:var(--accent-ink);line-height:1.6"><b>Гибрид:</b> вверху плоская лента (проекты рядом). Внутри проекта — рекурсивные табы: открой «Снабжение» → у него своя лента вкладок, задачи открываются в ней (как в первом варианте).</div></div></div>';
+}
+function renderSupplyList(){
+  const rows=SUPPLY_TASKS.map(t=>'<div class="row" data-open="supplyTask" data-tid="'+t.id+'"><div class="r-main"><div class="r-title">'+t.name+'</div><div class="r-sub">'+t.positions+' позиции · '+t.sum+'</div></div><span class="badge '+t.badge+'"><span class="dot"></span>'+t.badgeText+'</span><span class="chev">›</span></div>').join('');
+  return '<div class="head"><div><h2>Снабжение</h2><div class="sub">'+SUPPLY_TASKS.length+' задачи · задача открывается вкладкой рядом со списком</div></div><button class="btn btn-primary">+ Задача закупки</button></div><div class="body"><div class="rowlist">'+rows+'</div></div>';
+}
+function renderWorksList(){
+  const rows=WORKS_TASKS.map(t=>'<div class="row" data-open="worksTask" data-tid="'+t.id+'"><div class="r-main"><div class="r-title">'+t.name+'</div><div class="r-sub">'+t.worker+' · '+t.positions+' позиций</div></div><span class="badge '+t.badge+'"><span class="dot"></span>'+t.badgeText+'</span><span class="chev">›</span></div>').join('');
+  return '<div class="head"><div><h2>Работы</h2><div class="sub">'+WORKS_TASKS.length+' задачи</div></div><button class="btn btn-primary">+ Задача работ</button></div><div class="body"><div class="rowlist">'+rows+'</div></div>';
+}
+function renderDocsList(){
+  const rows=DOCS_TASKS.map(t=>'<div class="row" data-open="docsTask" data-tid="'+t.id+'"><div class="r-main"><div class="r-title">'+t.name+'</div><div class="r-sub">'+t.responsible+' · '+t.positions+' позиций</div></div><span class="badge '+t.badge+'"><span class="dot"></span>'+t.badgeText+'</span><span class="chev">›</span></div>').join('');
+  return '<div class="head"><div><h2>Документы</h2><div class="sub">'+DOCS_TASKS.length+' задачи</div></div><button class="btn btn-primary">+ Задача документации</button></div><div class="body"><div class="rowlist">'+rows+'</div></div>';
+}
+function renderSupplyTask(tid){
+  const t=SUPPLY_TASKS.find(x=>x.id===tid); const pos=TASK_POSITIONS[tid]||[];
+  const steps=['Запрос','Цены','Согласование','Оплата','Доставка']; let stepper='';
+  steps.forEach((s,i)=>{const n=i+1;const cls=n<t.step?'done':n===t.step?'active':'wait'; stepper+='<div class="step '+cls+'"><div class="num">'+(n<t.step?'✓':n)+'</div><div class="lbl">'+s+'</div></div>'; if(i<steps.length-1)stepper+='<div class="step-line '+(n<t.step?'done':'')+'"></div>';});
+  const posRows=pos.map(p=>'<tr><td>'+p.name+'</td><td class="num-cell">'+p.qty+'</td><td class="num-cell">'+p.price+'</td><td class="num-cell">'+p.sum+'</td></tr>').join('');
+  return '<div class="head"><div><h2>'+t.name+'</h2><div class="sub">Поставщик: '+t.supplier+' · итого '+t.sum+'</div></div><span class="badge '+t.badge+'"><span class="dot"></span>'+t.badgeText+'</span></div><div class="body"><div class="stepper">'+stepper+'</div><div class="grid2"><div class="card" style="margin:0"><h3>Позиции</h3><table><thead><tr><th>Наименование</th><th class="num-cell">Кол-во</th><th class="num-cell">Цена</th><th class="num-cell">Сумма</th></tr></thead><tbody>'+posRows+'</tbody></table></div><div><div class="card"><h3>Действия</h3><div class="actions"><button class="btn btn-primary">Отправить на оплату</button><button class="btn">Изменить состав</button></div></div></div></div></div>';
+}
+function renderWorksTask(tid){ const t=WORKS_TASKS.find(x=>x.id===tid); return '<div class="head"><div><h2>'+t.name+'</h2><div class="sub">Бригада: '+t.worker+' · '+t.positions+' позиций</div></div><span class="badge '+t.badge+'"><span class="dot"></span>'+t.badgeText+'</span></div><div class="body"><div class="card"><h3>Действия</h3><div class="actions"><button class="btn btn-primary">Завершить работу</button><button class="btn">Прикрепить фото</button><button class="btn">Создать акт</button></div></div></div>'; }
+function renderDocsTask(tid){ const t=DOCS_TASKS.find(x=>x.id===tid); return '<div class="head"><div><h2>'+t.name+'</h2><div class="sub">Ответственный: '+t.responsible+' · '+t.positions+' позиций</div></div><span class="badge '+t.badge+'"><span class="dot"></span>'+t.badgeText+'</span></div><div class="body"><div class="card"><h3>Действия</h3><div class="actions"><button class="btn btn-primary">Навесить документ</button><button class="btn">Сводный документ</button></div></div></div>'; }
+function renderStub(title){ return '<div class="empty" style="height:100%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><h3>'+title+'</h3><p>Демо-раздел. Наполнены Проекты → проект → разделы → задачи.</p></div>'; }
+// хелперы поиска уровней внутри проекта
+function projectRoot(){ const g=curGlobal(); return g&&g.root?g.root:null; }
+function findLevelByLtab(id){ const g=curGlobal(); if(!g||!g.root) return null; let res=null; (function walk(l){ if(l.tabs.some(t=>t.id===id)){res=l;return;} l.tabs.forEach(t=>{ if(t.children) walk(t.children); }); })(g.root); return res; }
+function activeSectionLevel(kind){ const g=curGlobal(); if(!g||!g.root) return null; const act=g.root.tabs.find(t=>t.id===g.root.active); return (act&&act.kind===kind&&act.children)?act.children:null; }
+function bindAll(){
+  // верхние: открытие проекта
+  document.querySelectorAll('.row[data-open="project"]').forEach(r=>{
+    r.onclick=()=>{ const p=PROJECTS.find(x=>x.id===r.dataset.pid);
+      openGlobal({ id:'proj-'+p.id, title:p.short, kind:'project', dot:'#2f6db5', data:{pid:p.id},
+        root:{ tabs:[ {id:'ov-'+p.id, title:'Обзор', kind:'overview', pinned:true} ], active:'ov-'+p.id } }); };
+  });
+  // внутренние вкладки (все уровни)
+  document.querySelectorAll('.ltab[data-ltabid]').forEach(el=>{
+    el.onclick=(e)=>{ const level=el._level; if(!level) return;
+      if(e.target.classList.contains('close')) closeInLevel(level, el.dataset.ltabid);
+      else level.active=el.dataset.ltabid;
+      render(); };
+  });
+  // разделы из обзора → открыть раздел-контейнер в корне проекта
+  const g=curGlobal();
+  document.querySelectorAll('.row[data-open="supply"],.row[data-open="works"],.row[data-open="docs"]').forEach(r=>{
+    r.onclick=()=>{ if(!g||!g.root) return; const sec=r.dataset.open; const pid=g.data.pid;
+      const titles={supply:'Снабжение',works:'Работы',docs:'Документы'};
+      const listKind={supply:'supplyList',works:'worksList',docs:'docsList'}[sec];
+      openInLevel(g.root, { id:'sec-'+sec+'-'+pid, title:titles[sec], kind:sec, dot:'#2f6db5',
+        children:{ tabs:[ {id:'list-'+sec+'-'+pid, title:'Список задач', kind:listKind, pinned:true} ], active:'list-'+sec+'-'+pid } });
+      render(); };
+  });
+  // задачи → открыть в ленте своего раздела (рекурсивно)
+  document.querySelectorAll('.row[data-open="supplyTask"]').forEach(r=>{ r.onclick=()=>{ const lvl=activeSectionLevel('supply'); const t=SUPPLY_TASKS.find(x=>x.id===r.dataset.tid); if(lvl){ openInLevel(lvl,{id:'task-'+t.id,title:t.short,kind:'supplyTask',dot:'#d98a1f',data:{taskId:t.id}}); render(); } }; });
+  document.querySelectorAll('.row[data-open="worksTask"]').forEach(r=>{ r.onclick=()=>{ const lvl=activeSectionLevel('works'); const t=WORKS_TASKS.find(x=>x.id===r.dataset.tid); if(lvl){ openInLevel(lvl,{id:'wtask-'+t.id,title:t.short,kind:'worksTask',dot:'#d98a1f',data:{taskId:t.id}}); render(); } }; });
+  document.querySelectorAll('.row[data-open="docsTask"]').forEach(r=>{ r.onclick=()=>{ const lvl=activeSectionLevel('docs'); const t=DOCS_TASKS.find(x=>x.id===r.dataset.tid); if(lvl){ openInLevel(lvl,{id:'dtask-'+t.id,title:t.short,kind:'docsTask',dot:'#d98a1f',data:{taskId:t.id}}); render(); } }; });
+}
+openGlobal({ id:'projects', title:'Проекты', kind:'projects', pinned:true });
+</script>
+</body>
+</html>
