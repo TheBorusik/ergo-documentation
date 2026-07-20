@@ -8,24 +8,27 @@
 ## 1. reference_types
 
 ### GET /reference-types
-Список всех типов измерений.
+Список всех типов измерений. `kind` — на типе (решение 2026-07-21).
 
 **Response:**
 ```json
 [
-  { "id": 1, "name": "Длина" },
-  { "id": 2, "name": "Масса" },
-  { "id": 16, "name": "Материал" }
+  { "id": 1, "name": "Длина", "kind": "unit" },
+  { "id": 2, "name": "Масса", "kind": "unit" },
+  { "id": 16, "name": "Материал", "kind": "enum" }
 ]
 ```
 
 ### POST /reference-types
-Создать тип измерения.
+Создать тип измерения. Вид (`kind`) выбирается один раз здесь — все значения типа его наследуют.
 
 **Request:**
 ```json
-{ "name": "Длина" }
+{ "name": "Длина", "kind": "unit" }
 ```
+
+**Валидация:**
+- `kind` должен быть `unit` или `enum`; после создания не меняется (значения уже могли использоваться)
 
 ### PUT /reference-types/:id
 Обновить тип измерения.
@@ -43,12 +46,12 @@
 **Query params:**
 ```
 ?reference_type_id=1     — только значения типа "Длина"
-?type=unit                 — только физические единицы
-?type=enum                 — только перечисления
+?kind=unit                 — только значения unit-типов
+?kind=enum                 — только значения enum-типов
 ?search=мм                 — поиск по name/symbol
 ```
 
-**Response:**
+**Response** (`kind` — производное от типа, у значения собственного поля нет):
 ```json
 [
   {
@@ -57,7 +60,7 @@
     "reference_type_name": "Длина",
     "name": "Миллиметр",
     "symbol": "мм",
-    "type": "unit"
+    "kind": "unit"
   },
   {
     "id": 32,
@@ -65,7 +68,7 @@
     "reference_type_name": "Материал",
     "name": "Оцинкованная сталь",
     "symbol": "оц.сталь",
-    "type": "enum"
+    "kind": "enum"
   }
 ]
 ```
@@ -74,20 +77,18 @@
 Получить конкретное значение.
 
 ### POST /references
-Создать значение.
+Создать значение. Вид НЕ передаётся — наследуется от `reference_types.kind` (решение 2026-07-21). `article_code` имеет смысл только для значений enum-типов.
 
 **Request:**
 ```json
 {
   "reference_type_id": 1,
   "name": "Миллиметр",
-  "symbol": "мм",
-  "type": "unit"
+  "symbol": "мм"
 }
 ```
 
 **Валидация:**
-- `type` должен быть `unit` или `enum`
 - `reference_type_id` должен существовать
 
 ### PUT /references/:id
@@ -183,6 +184,9 @@
   "reference_type_id": 1
 }
 ```
+
+**Валидация (правило 2026-07-21):**
+- если `reference_types.kind = enum` — на этот тип уже НЕ должно быть другого свойства (на перечисление максимум одно свойство; unit-типов это не касается — Длина → Ширина/Высота/Диаметр…). Ошибка: «Для перечисления уже есть свойство "{name}"»
 
 ### PUT /properties/:id
 Обновить свойство.
@@ -975,6 +979,8 @@ qualifiers, properties, literals):
   создание новой версии        → ErgoArea.NomElements.Replace (immutable, TODO)
 
 Позиции номенклатуры:
-  GET /positions (+фасеты)     → ErgoArea.NomPositions.Query  ✓ (Facets — этап 2)
+  GET /positions (+фильтры)    → ErgoArea.NomPositions.Query  ✓ (Filters/Limit/Offset → Total)
+  GET /positions/facets        → ErgoArea.NomPositions.Facets ✓ (динамические фасеты категории:
+                                   enum → значения со счётчиками, unit → числовой ввод)
   POST /positions              → ErgoArea.NomPositions.Add    ✓ (имя/артикул на сервере)
 ```
