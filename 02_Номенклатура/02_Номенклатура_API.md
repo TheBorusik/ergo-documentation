@@ -948,3 +948,33 @@ created       — создана новая позиция
   ]
 }
 ```
+
+═══════════════════════════════════════════════════
+WIRE-ТИПЫ МЕТОДОВ (Area.Entity.Action — 01/07 A4)
+═══════════════════════════════════════════════════
+```
+REST выше — детальная форма (по одному эндпоинту на сущность).
+РЕАЛИЗАЦИЯ (ergo-erp, 05/16) агрегирует справочники — они маленькие
+и нужны вместе (форма позиции, конструктор):
+
+Все справочники разом (categories, reference_types, references,
+qualifiers, properties, literals):
+  → ErgoArea.NomDictionaries.Get                       ✓
+Мутации справочников (по сущности):
+  → ErgoArea.NomDictionaries.CategoriesAdd/Delete      ✓
+  → ErgoArea.NomDictionaries.ReferenceTypesAdd/Delete  ✓
+  → ErgoArea.NomDictionaries.ReferencesAdd/Update/Delete ✓
+  → ErgoArea.NomDictionaries.QualifiersAdd/Delete      ✓
+  → ErgoArea.NomDictionaries.PropertiesAdd/Update/Delete ✓ (+QualifierIds внутри)
+  → ErgoArea.NomDictionaries.LiteralsAdd/Delete        ✓
+
+Элементы (шаблоны, включая свойства и группы токенов):
+  GET /elements                → ErgoArea.NomElements.Query   ✓
+  GET /elements/{id}           → ErgoArea.NomElements.Get     ✓ (+properties+groups)
+  POST/PUT elements + вложения → ErgoArea.NomElements.Save    ✓ (Id=0 — создание)
+  создание новой версии        → ErgoArea.NomElements.Replace (immutable, TODO)
+
+Позиции номенклатуры:
+  GET /positions (+фасеты)     → ErgoArea.NomPositions.Query  ✓ (Facets — этап 2)
+  POST /positions              → ErgoArea.NomPositions.Add    ✓ (имя/артикул на сервере)
+```
