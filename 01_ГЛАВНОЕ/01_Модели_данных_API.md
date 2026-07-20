@@ -592,6 +592,57 @@ EventLog {
   timeline проекта = WHERE project_id={id} ORDER BY changed_at
 ```
 
+## Notification (уведомление пользователю)
+```
+★ НЕ ПУТАТЬ с event_log: event_log — летопись ВСЕГО (аудит, для всех),
+  notifications — ТОЛЬКО адресное конкретному человеку ("ВАМ назначили"),
+  push-события (WS) — эфемерный сигнал "обновись", не хранятся.
+  notifications — подмножество событий, адресованное человеку.
+
+Notification {
+  id: int
+  user_id: FK→User        (КОМУ адресовано)
+  type: enum              (subtask_assigned | order_paid |
+                           deadline_near | needs_approval | ...)
+                          — типы соответствуют событиям что адресны человеку
+  title: string           ("Вам назначена задача «Воздуховоды П1»")
+  link: {                 (КУДА вести по клику — как SearchItem, см. 05/10)
+    project_id?: int
+    section?: string
+    entity_type: string   (subtask | order | position...)
+    entity_id: int
+  }
+  is_read: bool           (false → попадает в счётчик непрочитанных)
+  created_at: datetime
+}
+
+ПРАВИЛА:
+- создаётся СЕРВЕРОМ когда действие адресно конкретному человеку
+  (не каждое event_log событие → только адресные)
+- бейдж колокольчика = COUNT WHERE user_id=me AND is_read=false
+- клик по уведомлению → переход по link (фронт строит URL по entity_type,
+  как в глобальном поиске 05/10) + пометить is_read=true
+- link по структуре = как SearchItem.path в поиске (переиспользуем подход)
+
+ПОТОК (одно действие сервера → несколько записей):
+  1. UPDATE данных (напр. subtasks.responsible_id)
+  2. INSERT event_log (аудит, для всех)
+  3. INSERT notifications (если адресно — лично)
+  4. push "новое уведомление" (будит счётчик) + push-invalidate данных
+  push НЕ несёт текст — текст из БД (офлайн/история/is_read).
+
+API (неймспейс Area.Entity.Action, см. 01/07 A4):
+  ErgoArea.Notifications.Query     → список (непрочитанные / все, пагинация)
+  ErgoArea.Notifications.MarkRead  → пометить прочитанным (id или все)
+  ErgoArea.Notifications.Count     → счётчик непрочитанных (для бейджа)
+    (или отдавать count внутри Query — решить при реализации)
+
+Событие (push, будит колокольчик):
+  ErgoArea.Notifications.Created
+    { Invalidate: ["ErgoArea.Notifications"], Notify: { UserIds: [<кому>] } }
+  → фронт: invalidate ['ErgoArea','Notifications'] → счётчик+список обновятся
+```
+
 ## Order (закупка — финансовая таблица, создаёт бухгалтер)
 ```
 Order {
